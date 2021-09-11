@@ -18,7 +18,7 @@ conf = yaml.load(open('conf/config.yml'),yaml.FullLoader)
 # Mail mariables
 sender_mail = conf['gmail-user']['email']
 sender_mail_password = conf['gmail-user']['password']
-receiver_mail = conf['receiver-mail']['work-info']
+receiver_mail = conf['receiver-mail']['my-mail']
 smtp_server = "smtp.gmail.com"
 smtp_port = 587
 
@@ -79,14 +79,14 @@ try:
                 time_zone_offset = json_dict['timezone_offset']
                 daily_len = len(json_dict['daily'])
 
-                daily_dt = json_dict['daily'][daily_len - 1]['dt']
-                daily_wind_speed = json_dict['daily'][daily_len - 1]['wind_speed']
-                daily_weather = json_dict['daily'][daily_len - 1]['weather'][0]['description']
-                daily_icon = json_dict['daily'][daily_len - 1]['weather'][0]['icon']
+                daily_dt = json_dict['daily'][daily_len - 4]['dt']
+                daily_wind_speed = json_dict['daily'][daily_len - 4]['wind_speed']
+                daily_weather = json_dict['daily'][daily_len - 4]['weather'][0]['description']
+                daily_icon = json_dict['daily'][daily_len - 4]['weather'][0]['icon']
 
                 daily_icon_html = """<img src="http://openweathermap.org/img/wn/{}.png" width="100%">""".format(daily_icon)
 
-                daily_dt_local = datetime.utcfromtimestamp(daily_dt + time_zone_offset).strftime('%Y-%m-%d %H:%M:%S')
+                daily_dt_local = datetime.utcfromtimestamp(daily_dt + time_zone_offset).strftime('%d/%m/%Y %H:%M')
 
                 if -3 <= daily_wind_speed <= 3:
                     list.append(daily_wind_speed)
@@ -110,39 +110,51 @@ try:
 
     list_html_table = tabular_table.get_html_string()
 
+    if mail_list:
+        msgHtml = """
+            <html>
+                <head>
+                <style>
+                    body {
+                        font-family: sans-serif;
+                    }
+                    table, th, td {
+                        border: 1px solid black;
+                        border-collapse: collapse;
+                    }
+                    th, td {
+                        padding: 5px;
+                        text-align: left;    
+                    }    
+                </style>
+                </head>
+            <body>
+            <p>Okunamayan santral sayısı: %s </p><br>
+        
+            %s
+        
+            </body>
+            </html>
+            """ % (okunmayan, list_html_table)
 
-    msgHtml = """
-        <html>
-            <head>
-            <style>
-                body {
-                    font-family: sans-serif;
-                }
-                table, th, td {
-                    border: 1px solid black;
-                    border-collapse: collapse;
-                }
-                th, td {
-                    padding: 5px;
-                    text-align: left;    
-                }    
-            </style>
-            </head>
-        <body>
-        <p>Okunamayan santral sayısı: %s </p><br>
-    
-        %s
-    
-        </body>
-        </html>
-        """ % (okunmayan, list_html_table)
+        msgHtml = html.unescape(msgHtml)
 
-    msgHtml = html.unescape(msgHtml)
 
-    subject = "{} Tarihinde Ruzgar Durumu 3m/s Altında Olan {} Saha".format(daily_dt_local, len(mail_list))
-    message = create_html_message(sender_mail, receiver_mail, subject, msgHtml)
 
-    send_mail(message.as_string())
+
+        subject = "{} Tarihinde Ruzgar Durumu 3m/s ve Altında Olan {} Saha".format(daily_dt_local, len(mail_list))
+        message = create_html_message(sender_mail, receiver_mail, subject, msgHtml)
+
+        send_mail(message.as_string())
+
+    else:
+        msgHtml = """
+            <p> {} Tarihinde Ruzgar Durumu 3m/s ve Altında Olan Saha Bulunamamıştır</p>
+                """.format(daily_dt_local)
+        subject = "{} Tarihinde Ruzgar Durumu 3m/s ve Altında Olan Saha Bulunamamıştır".format(daily_dt_local)
+        message = create_html_message(sender_mail, receiver_mail, subject, msgHtml)
+        send_mail(message.as_string())
+
 except Exception as e:
     msgHtml = """
     <p> %s hatası</p>
